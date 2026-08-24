@@ -1081,6 +1081,22 @@ func (p *talosMachineConfigurationApplyResource) ModifyPlan(ctx context.Context,
 
 	machineConfigInput := getMachineConfigurationInput(&planState)
 
+	// During the apply phase terraform calls ModifyPlan again to expand the plan
+	// with new values learned so far.  If machine_configuration_hash is already
+	// known the plan already has a hash from the plan phase — preserve it.
+	// Re-rendering during apply would produce a different hash (whitespace /
+	// key-ordering differences) and cause "inconsistent final plan".
+	var currentHash types.String
+	planDiags := req.Plan.GetAttribute(ctx, path.Root("machine_configuration_hash"), &currentHash)
+	resp.Diagnostics.Append(planDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if !currentHash.IsUnknown() {
+		// Apply phase — hash already set in the plan. Preserve it.
+		return
+	}
+
 	// When inputs are unknown (e.g. data source not yet resolved during plan), we cannot
 	// compute the hash. Explicitly mark the computed attributes as unknown so that OpenTofu
 	// accepts the changed value during plan expansion. Leaving them at the old state value
