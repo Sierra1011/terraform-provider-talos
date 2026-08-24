@@ -1081,6 +1081,16 @@ func (p *talosMachineConfigurationApplyResource) ModifyPlan(ctx context.Context,
 
 	machineConfigInput := getMachineConfigurationInput(&planState)
 
+	var currentHash types.String
+	planDiags := req.Plan.GetAttribute(ctx, path.Root("machine_configuration_hash"), &currentHash)
+	resp.Diagnostics.Append(planDiags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if !currentHash.IsUnknown() {
+		return
+	}
+
 	// When inputs are unknown (e.g. data source not yet resolved during plan), we cannot
 	// compute the hash. Explicitly mark the computed attributes as unknown so that OpenTofu
 	// accepts the changed value during plan expansion. Leaving them at the old state value
