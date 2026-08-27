@@ -1096,7 +1096,11 @@ func (p *talosMachineConfigurationApplyResource) ModifyPlan(ctx context.Context,
 	if !machineConfigInput.IsNull() {
 		configPatches, err := configPatchesAsStrings(planState.ConfigPatches)
 		if err != nil {
-			// err is only returned when an element is Unknown — bail out like before.
+			// An unknown element in a known-length list bypasses the whole-list guard
+			// above; defer the hash to apply instead of leaving the prior-state value.
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("machine_configuration_hash"), types.StringUnknown())...)
+			resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("machine_configuration"), types.StringUnknown())...)
+
 			return
 		}
 
